@@ -12,6 +12,8 @@ const resturantSchema = new mongoose.Schema(
     role: { type: String, default: "restaurant" },
     type: { type: String, enum: ["veg", "non-veg", "both"], default: "both" },
     status: { type: String, enum: ["open", "close"], default: "open" },
+    avatar: { type: String },
+    rating: { type: Number, default: 0, min: 0, max: 5 }, //
     items: [
       {
         type: mongoose.Schema.Types.ObjectId,

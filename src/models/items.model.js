@@ -25,6 +25,11 @@ const itemSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    resturantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Resturant",
+      required: true,
+    },
   },
   { timestamps: true }
 );

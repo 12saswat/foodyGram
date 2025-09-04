@@ -1,7 +1,7 @@
 const Resturant = require("../models/resturant.model");
 
 const registerResturant = async (req, res) => {
-  const { name, address, phone, email, type, password } = req.body;
+  const { name, address, phone, email, type, password, rating } = req.body;
   try {
     if (!name || !address || !email || !password) {
       return res.status(400).json({
@@ -27,6 +27,7 @@ const registerResturant = async (req, res) => {
       phone,
       email,
       type,
+      rating,
     });
     await newResturant.save();
     res.status(201).json({

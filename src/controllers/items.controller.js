@@ -1,11 +1,40 @@
 const Resturant = require("../models/resturant.model");
 const Item = require("../models/items.model");
+const uploadOnCloudinary = require("../utils/cloudinary");
+const mongoose = require("mongoose");
 
 const create = async (req, res) => {
   try {
     const { name, description, price, category, resturantId } = req.body;
-    const imageUrl = req.files?.imageUrl ? req.files.imageUrl[0].path : null;
-    const videoUrl = req.files?.videoUrl ? req.files.videoUrl[0].path : null;
+
+    let videoUrl = null;
+    let imageUrl = null;
+
+    if (!mongoose.Types.ObjectId.isValid(resturantId)) {
+      return res.status(400).json({
+        success: false,
+        error: { message: "Invalid restaurant ID" },
+      });
+    }
+
+    // ✅ Upload video
+    if (req.files["videoUrl"]) {
+      const videoPath = req.files["videoUrl"][0].path;
+      const result = await uploadOnCloudinary(videoPath, "video");
+      if (result?.secure_url) {
+        videoUrl = result.secure_url;
+      }
+    }
+
+    // ✅ Upload image
+    if (req.files["imageUrl"]) {
+      const imagePath = req.files["imageUrl"][0].path;
+      const result = await uploadOnCloudinary(imagePath, "image");
+      if (result?.secure_url) {
+        imageUrl = result.secure_url;
+      }
+    }
+
     if (
       !name ||
       !description ||
@@ -16,9 +45,7 @@ const create = async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-        error: {
-          message: "All fields are required",
-        },
+        error: { message: "All fields are required" },
       });
     }
 
@@ -29,34 +56,36 @@ const create = async (req, res) => {
       category,
       videoUrl,
       imageUrl,
-      resturant: resturantId,
+      resturantId: resturantId,
     });
 
     const savedItem = await newItem.save();
 
-    // Add the item to the restaurant's items array
     await Resturant.findByIdAndUpdate(resturantId, {
       $push: { items: savedItem._id },
     });
 
     res.status(201).json({
       success: true,
-      data: savedItem,
+      response: {
+        message: "Item created successfully",
+      },
     });
   } catch (error) {
     console.error("Error creating item:", error);
     res.status(500).json({
       success: false,
-      error: {
-        message: "Internal Server error",
-      },
+      error: { message: "Internal Server error" },
     });
   }
 };
 
 const getAllItems = async (req, res) => {
   try {
-    const items = await Item.find();
+    const items = await Item.find().populate({
+      path: "resturantId",
+      select: "name address avatar rating",
+    });
     res.status(200).json({
       success: true,
       data: items,
@@ -104,10 +133,29 @@ const updateItem = async (req, res) => {
     const itemId = req.params.id;
     const updates = req.body;
 
-    const updatedItem = await Item.findByIdAndUpdate(itemId, updates, {
-      new: true,
-      runValidators: true,
-    });
+    const fileFields = ["videoUrl", "imageUrl"];
+    for (const field of fileFields) {
+      if (req.files && req.files[field]) {
+        const filePath = req.files[field][0].path;
+        const result = await uploadOnCloudinary(
+          filePath,
+          field === "videoUrl" ? "video" : "image"
+        );
+        if (result?.secure_url) {
+          updates[field] = result.secure_url;
+        }
+      }
+    }
+
+    const updatedItem = await Item.findByIdAndUpdate(
+      itemId,
+      updates,
+      fileFields,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
     if (!updatedItem) {
       return res.status(404).json({
         success: false,
@@ -149,7 +197,7 @@ const deleteItem = async (req, res) => {
     });
     res.status(200).json({
       success: true,
-      data: deletedItem,
+      response: "Item deleted successfully",
     });
   } catch (error) {
     console.error("Error deleting item:", error);

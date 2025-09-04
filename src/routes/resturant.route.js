@@ -13,7 +13,7 @@ const router = express.Router();
 router.post("/register", registerResturant);
 router.post("/login", loginResturant);
 router.get("/profile", checkAuth, getResturantProfile);
-router.get("/", checkAuth, getAllResturants);
+router.get("/", getAllResturants);
 router.put("/update", checkAuth, upadateResturantData);
 router.patch("/status", checkAuth, updateResturantStatus);
 
