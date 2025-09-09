@@ -76,9 +76,9 @@ const loginUser = async (req, res) => {
     return res
       .status(200)
       .cookie("token", token, {
-        httpOnly: false,
-        secure: process.env.NODE_ENV !== "development", // true in prod
-        sameSite: process.env.NODE_ENV === "development" ? "lax" : "none",
+        httpOnly: true,
+        secure: process.env.NODE_ENV !== "production", // true in prod
+        sameSite: process.env.NODE_ENV === "production" ? "lax" : "none",
         maxAge: 24 * 60 * 60 * 1000,
       })
       .json({
