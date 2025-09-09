@@ -25,6 +25,10 @@ const itemSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    quantity: {
+      type: Number,
+      default: 1,
+    },
     resturantId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Resturant",

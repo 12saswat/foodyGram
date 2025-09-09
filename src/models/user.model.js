@@ -7,13 +7,35 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
     password: { type: String, required: true },
+    avatar: { type: String },
     role: { type: String, default: "customer" },
+    savedItems: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Item",
+      },
+    ],
+    cartItems: [
+      {
+        item: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Item",
+        },
+        quantity: {
+          type: Number,
+          default: 1,
+          min: 1,
+        },
+      },
+    ],
   },
   { timestamps: true }
 );
 
 userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+  if (!this.isModified("password")) {
+    return next();
+  }
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });

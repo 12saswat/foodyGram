@@ -101,12 +101,41 @@ const getResturantProfile = async (req, res) => {
   try {
     const resturantId = req.user._id;
 
-    const resturant = await Resturant.findById(resturantId);
+    const resturant = await Resturant.findById(resturantId).populate("items"); // populate all items
+
     if (!resturant) {
       return res.status(404).json({
         success: false,
         error: {
-          message: "Resturant not found",
+          message: "Restaurant not found",
+        },
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: resturant,
+    });
+  } catch (error) {
+    console.error("Error fetching restaurant profile:", error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: "Internal Server error",
+      },
+    });
+  }
+};
+
+const getResturantById = async (req, res) => {
+  try {
+    const resturantId = req.params.id;
+    const resturant = await Resturant.findById(resturantId).populate("items"); // populate all items
+    if (!resturant) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: "Restaurant not found",
         },
       });
     }
@@ -115,7 +144,7 @@ const getResturantProfile = async (req, res) => {
       data: resturant,
     });
   } catch (error) {
-    console.error("Error fetching restaurant profile:", error);
+    console.error("Error fetching restaurant:", error);
     res.status(500).json({
       success: false,
       error: {
@@ -219,6 +248,7 @@ module.exports = {
   registerResturant,
   loginResturant,
   getResturantProfile,
+  getResturantById,
   getAllResturants,
   upadateResturantData,
   updateResturantStatus,
