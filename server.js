@@ -16,7 +16,7 @@ app.use(cookieParser());
 app.use(
   cors({
     // origin: ["http://localhost:5173", "http://192.168.1.100:5173"],
-    origin: "https://foodygram.onrender.com",
+    origin: "true",
     credentials: true,
   })
 );
