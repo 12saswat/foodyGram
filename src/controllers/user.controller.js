@@ -76,9 +76,9 @@ const loginUser = async (req, res) => {
     return res
       .status(200)
       .cookie("token", token, {
-        httpOnly: false, // Prevent client-side JS from accessing cookie
-        secure: process.env.NODE_ENV === "development", // Only send over HTTPS
-        sameSite: "strict", // Prevent CSRF
+        httpOnly: true, // Prevent client-side JS from accessing cookie
+        secure: process.env.NODE_ENV === "development" ? false : true,
+        path: "/",
         maxAge: 24 * 60 * 60 * 1000,
       })
       .json({
