@@ -76,8 +76,9 @@ const loginUser = async (req, res) => {
     return res
       .status(200)
       .cookie("token", token, {
-        httpOnly: true, // Prevent client-side JS from accessing cookie
-        secure: process.env.NODE_ENV === "development" ? false : true,
+        httpOnly: true,
+        secure: process.env.NODE_ENV !== "development", // true in prod
+        sameSite: process.env.NODE_ENV === "development" ? "lax" : "none", // ✅ important
         path: "/",
         maxAge: 24 * 60 * 60 * 1000,
       })
