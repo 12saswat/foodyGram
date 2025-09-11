@@ -8,6 +8,7 @@ const {
 } = require("../controllers/items.controller");
 const upload = require("../utils/uploade");
 const checkAuth = require("../middleswares/auth.middleware");
+const checkRole = require("../middleswares/checkRole.middleware");
 
 const router = express.Router();
 
@@ -19,6 +20,8 @@ router.post(
     { name: "videoUrl", checkAuth, maxCount: 1 },
     { name: "imageUrl", checkAuth, maxCount: 1 },
   ]),
+  checkAuth,
+  checkRole(["restaurant"]),
   create
 );
 
@@ -29,8 +32,9 @@ router.put(
     { name: "imageUrl", maxCount: 1 },
   ]),
   checkAuth,
+  checkRole(["restaurant"]),
   updateItem
 );
-router.delete("/delete/:id", checkAuth, deleteItem);
+router.delete("/delete/:id", checkAuth, checkRole(["restaurant"]), deleteItem);
 
 module.exports = router;

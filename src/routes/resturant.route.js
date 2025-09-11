@@ -9,14 +9,32 @@ const {
   getResturantById,
 } = require("../controllers/resturant.controller");
 const checkAuth = require("../middleswares/auth.middleware");
+const checkRole = require("../middleswares/checkRole.middleware");
+
 const router = express.Router();
 
 router.post("/register", registerResturant);
 router.post("/login", loginResturant);
-router.get("/profile", checkAuth, getResturantProfile);
-router.get("/:id", checkAuth, getResturantById);
-router.get("/", checkAuth, getAllResturants);
-router.put("/update", checkAuth, upadateResturantData);
-router.patch("/status", checkAuth, updateResturantStatus);
+router.get(
+  "/profile",
+  checkAuth,
+  checkRole(["restaurant"]),
+  getResturantProfile
+);
+
+router.get("/", checkAuth, checkRole(["restaurant"]), getAllResturants);
+router.put(
+  "/update",
+  checkAuth,
+  checkRole(["restaurant"]),
+  upadateResturantData
+);
+router.patch(
+  "/status",
+  checkAuth,
+  checkRole(["restaurant"]),
+  updateResturantStatus
+);
+router.get("/:id", checkAuth, checkRole(["restaurant"]), getResturantById);
 
 module.exports = router;

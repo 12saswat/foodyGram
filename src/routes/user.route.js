@@ -15,20 +15,41 @@ const {
   userDashboard,
 } = require("../controllers/user.controller");
 const checkAuth = require("../middleswares/auth.middleware");
+const checkRole = require("../middleswares/checkRole.middleware");
 
 const router = express.Router();
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);
-router.get("/profile", checkAuth, getUser);
-router.get("/dashboard", checkAuth, userDashboard);
-router.get("/savedItems", checkAuth, getSavedItems);
-router.post("/save/:id", checkAuth, savedItem);
-router.get("/cartItems", checkAuth, getCartItems);
-router.post("/cart/:id", checkAuth, addToCart);
-router.post("/cart/delete/:id", checkAuth, deleteFromCart);
-router.post("/saved/delete/:id", checkAuth, deleteFromSaved);
-router.post("/checkout", checkAuth, checkoutCart);
-router.post("/updateCart/:id", checkAuth, updateCartQuantity);
-router.post("/checkout/saved/:id", checkAuth, orderSavedItem);
+router.get("/profile", checkAuth, checkRole(["customer"]), getUser);
+router.get("/dashboard", checkAuth, checkRole(["customer"]), userDashboard);
+router.get("/savedItems", checkAuth, checkRole(["customer"]), getSavedItems);
+router.post("/save/:id", checkAuth, checkRole(["customer"]), savedItem);
+router.get("/cartItems", checkAuth, checkRole(["customer"]), getCartItems);
+router.post("/cart/:id", checkAuth, checkRole(["customer"]), addToCart);
+router.post(
+  "/cart/delete/:id",
+  checkAuth,
+  checkRole(["customer"]),
+  deleteFromCart
+);
+router.post(
+  "/saved/delete/:id",
+  checkAuth,
+  checkRole(["customer"]),
+  deleteFromSaved
+);
+router.post("/checkout", checkAuth, checkRole(["customer"]), checkoutCart);
+router.post(
+  "/updateCart/:id",
+  checkRole(["customer"]),
+  checkAuth,
+  updateCartQuantity
+);
+router.post(
+  "/checkout/saved/:id",
+  checkAuth,
+  checkRole(["customer"]),
+  orderSavedItem
+);
 module.exports = router;

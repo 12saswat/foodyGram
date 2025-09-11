@@ -33,6 +33,7 @@ resturantSchema.pre("save", async function (next) {
 });
 
 resturantSchema.methods.comparePassword = function (candidatePassword) {
+  console.log(candidatePassword, this.password);
   return bcrypt.compare(candidatePassword, this.password);
 };
 
