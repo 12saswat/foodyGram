@@ -76,16 +76,19 @@ const loginResturant = async (req, res) => {
     }
     const token = resturant.generateAccessToken();
 
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
-    });
-    res.status(200).json({
-      success: true,
-      message: "Resturant logged in successfully",
-    });
+    return res
+      .status(200)
+      .cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV !== "production", // true in prod
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        maxAge: 24 * 60 * 60 * 1000,
+      })
+      .json({
+        success: true,
+        token: token,
+        message: "Resturant logged in successfully",
+      });
   } catch (error) {
     console.error("Error logging in restaurant:", error);
     res.status(500).json({
