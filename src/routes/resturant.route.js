@@ -15,7 +15,7 @@ router.post("/register", registerResturant);
 router.post("/login", loginResturant);
 router.get("/profile", checkAuth, getResturantProfile);
 router.get("/:id", checkAuth, getResturantById);
-router.get("/", getAllResturants);
+router.get("/", checkAuth, getAllResturants);
 router.put("/update", checkAuth, upadateResturantData);
 router.patch("/status", checkAuth, updateResturantStatus);
 
