@@ -299,32 +299,13 @@ const getResturantAnalytics = async (req, res) => {
       { $limit: 10 },
     ]);
 
-    // 2. Best Reviews (Highest Rated Orders)
-    const bestReviews = await Review.aggregate([
-      {
-        $match: { restaurantId: restaurantId }, // only for this restaurant
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "userId",
-          foreignField: "_id",
-          as: "userDetails",
-        },
-      },
-      { $unwind: "$userDetails" },
-      {
-        $project: {
-          rating: 1,
-          comment: 1,
-          createdAt: 1,
-          userName: "$userDetails.name",
-          userAvatar: "$userDetails.avatar",
-        },
-      },
-      { $sort: { rating: -1, createdAt: -1 } }, // highest rating first, then newest
-      { $limit: 10 },
-    ]);
+    // 2. Best Reviews
+    const bestReviews = await Review.find({
+      restaurantId: new mongoose.Types.ObjectId(restaurantId),
+    })
+      .populate("userId", "name avatar")
+      .sort({ rating: -1, createdAt: -1 })
+      .limit(10);
 
     // 3. Cancelled Orders Analysis
     const cancelledOrders = await Order.aggregate([
@@ -465,6 +446,8 @@ const getResturantAnalytics = async (req, res) => {
       },
       { $sort: { _id: 1 } },
     ]);
+
+    console.log("id", await Review.findOne({ restaurantId }));
 
     res.status(200).json({
       success: true,
