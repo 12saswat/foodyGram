@@ -17,6 +17,19 @@ const create = async (req, res) => {
       });
     }
 
+    if (!resturantId) {
+      return res.status(400).json({
+        success: false,
+        error: { message: "Restaurant ID is required" },
+      });
+    }
+    if (!req.files["videoUrl"]) {
+      return res.status(400).json({
+        success: false,
+        error: { message: "Video is required" },
+      });
+    }
+
     // ✅ Upload video
     if (req.files["videoUrl"]) {
       const videoPath = req.files["videoUrl"][0].path;

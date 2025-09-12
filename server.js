@@ -8,6 +8,7 @@ const userRouter = require("./src/routes/user.route");
 const resturantsRouter = require("./src/routes/resturant.route");
 const itemsRouter = require("./src/routes/items.route");
 const orderRouter = require("./src/routes/order.route");
+const reviewRouter = require("./src/routes/review.route");
 const cors = require("cors");
 
 app.use(express.json());
@@ -15,9 +16,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: "https://foody-gram-f.vercel.app",
+    // origin: "https://foody-gram-f.vercel.app",
     // origin: "https://localhost:5173",
-    // origin: true,
+    origin: true,
     credentials: true,
   })
 );
@@ -30,6 +31,8 @@ app.use("/api/v1/resturants", resturantsRouter);
 app.use("/api/v1/items", itemsRouter);
 
 app.use("/api/v1/orders", orderRouter);
+
+app.use("/api/v1/review", reviewRouter);
 
 app.listen(port, () =>
   console.log("> Server is up and running on port : " + port)

@@ -8,11 +8,20 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true },
     password: { type: String, required: true },
     avatar: { type: String },
+    phone: { type: String },
+    address: { type: String },
+
     role: { type: String, default: "customer" },
     savedItems: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Item",
+      },
+    ],
+    orders: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Order",
       },
     ],
     cartItems: [

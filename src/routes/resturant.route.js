@@ -7,6 +7,7 @@ const {
   updateResturantStatus,
   upadateResturantData,
   getResturantById,
+  getResturantAnalytics,
 } = require("../controllers/resturant.controller");
 const checkAuth = require("../middleswares/auth.middleware");
 const checkRole = require("../middleswares/checkRole.middleware");
@@ -15,12 +16,7 @@ const router = express.Router();
 
 router.post("/register", registerResturant);
 router.post("/login", loginResturant);
-router.get(
-  "/profile",
-  checkAuth,
-  checkRole(["restaurant"]),
-  getResturantProfile
-);
+router.get("/profile", checkAuth, getResturantProfile);
 
 router.get("/", checkAuth, checkRole(["restaurant"]), getAllResturants);
 router.put(
@@ -35,6 +31,7 @@ router.patch(
   checkRole(["restaurant"]),
   updateResturantStatus
 );
-router.get("/:id", checkAuth, checkRole(["restaurant"]), getResturantById);
+router.get("/analytics", checkAuth, getResturantAnalytics);
+router.get("/:id", checkAuth, getResturantById);
 
 module.exports = router;

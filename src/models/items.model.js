@@ -34,6 +34,12 @@ const itemSchema = new mongoose.Schema(
       ref: "Resturant",
       required: true,
     },
+    reviews: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Review",
+      },
+    ],
   },
   { timestamps: true }
 );

@@ -1,4 +1,8 @@
 const Resturant = require("../models/resturant.model");
+const Item = require("../models/items.model");
+const Order = require("../models/order.model");
+const Review = require("../models/review.Model");
+const mongoose = require("mongoose");
 
 const registerResturant = async (req, res) => {
   const { name, address, phone, email, type, password, rating } = req.body;
@@ -247,6 +251,249 @@ const updateResturantStatus = async (req, res) => {
   }
 };
 
+const getResturantAnalytics = async (req, res) => {
+  try {
+    const restaurantId = req.user._id;
+
+    // 1. Best Items with Ratings (Most Liked)
+    const bestItems = await Order.aggregate([
+      { $unwind: "$items" },
+      {
+        $lookup: {
+          from: "items",
+          localField: "items.item",
+          foreignField: "_id",
+          as: "itemDetails",
+        },
+      },
+      { $unwind: "$itemDetails" },
+      {
+        $lookup: {
+          from: "reviews",
+          localField: "reviews", // match order.reviews array
+          foreignField: "_id",
+          as: "orderReviews",
+        },
+      },
+      {
+        $addFields: {
+          reviewCount: { $size: "$orderReviews" },
+        },
+      },
+      {
+        $group: {
+          _id: "$items.item",
+          itemName: { $first: "$itemDetails.name" },
+          itemImage: { $first: "$itemDetails.imageUrl" },
+          category: { $first: "$itemDetails.category" },
+          price: { $first: "$itemDetails.price" },
+          totalOrdered: { $sum: "$items.quantity" },
+          totalRevenue: {
+            $sum: { $multiply: ["$items.price", "$items.quantity"] },
+          },
+          avgRating: { $avg: "$orderReviews.rating" },
+          reviewCount: { $sum: "$reviewCount" },
+        },
+      },
+      { $sort: { totalOrdered: -1, avgRating: -1 } },
+      { $limit: 10 },
+    ]);
+
+    // 2. Best Reviews (Highest Rated Orders)
+    const bestReviews = await Review.aggregate([
+      {
+        $match: { restaurantId: restaurantId }, // only for this restaurant
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "userId",
+          foreignField: "_id",
+          as: "userDetails",
+        },
+      },
+      { $unwind: "$userDetails" },
+      {
+        $project: {
+          rating: 1,
+          comment: 1,
+          createdAt: 1,
+          userName: "$userDetails.name",
+          userAvatar: "$userDetails.avatar",
+        },
+      },
+      { $sort: { rating: -1, createdAt: -1 } }, // highest rating first, then newest
+      { $limit: 10 },
+    ]);
+
+    // 3. Cancelled Orders Analysis
+    const cancelledOrders = await Order.aggregate([
+      {
+        $match: {
+          status: "cancelled",
+        },
+      },
+      { $unwind: "$items" },
+      {
+        $lookup: {
+          from: "items",
+          localField: "items.item",
+          foreignField: "_id",
+          as: "itemDetails",
+        },
+      },
+      { $unwind: "$itemDetails" },
+      {
+        $group: {
+          _id: "$items.item",
+          itemName: { $first: "$itemDetails.name" },
+          category: { $first: "$itemDetails.category" },
+          cancelledCount: { $sum: "$items.quantity" },
+          lostRevenue: {
+            $sum: { $multiply: ["$items.price", "$items.quantity"] },
+          },
+        },
+      },
+      { $sort: { cancelledCount: -1 } },
+      { $limit: 10 },
+    ]);
+
+    // 4. Disliked Items (Low Ratings)
+    const dislikedItems = await Review.aggregate([
+      {
+        $lookup: {
+          from: "orders",
+          localField: "orderId",
+          foreignField: "_id",
+          as: "orderDetails",
+        },
+      },
+      { $unwind: "$orderDetails" },
+      {
+        $match: {
+          "orderDetails.restaurant": restaurantId,
+          rating: { $lte: 2 },
+        },
+      },
+
+      { $unwind: "$orderDetails.items" },
+      {
+        $lookup: {
+          from: "items",
+          localField: "orderDetails.items.item",
+          foreignField: "_id",
+          as: "itemDetails",
+        },
+      },
+      { $unwind: "$itemDetails" },
+      {
+        $group: {
+          _id: "$orderDetails.items.item",
+          itemName: { $first: "$itemDetails.name" },
+          category: { $first: "$itemDetails.category" },
+          avgRating: { $avg: "$rating" },
+          negativeReviews: { $sum: 1 },
+          comments: { $push: "$comment" },
+        },
+      },
+      { $sort: { avgRating: 1, negativeReviews: -1 } },
+      { $limit: 10 },
+    ]);
+
+    // 5. Monthly Overview Stats
+    const monthlyStats = await Order.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalOrders: { $sum: 1 },
+          totalRevenue: { $sum: "$totalAmount" },
+          avgOrderValue: { $avg: "$totalAmount" },
+          completedOrders: {
+            $sum: { $cond: [{ $eq: ["$status", "delivered"] }, 1, 0] },
+          },
+          cancelledOrders: {
+            $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0] },
+          },
+          pendingOrders: {
+            $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] },
+          },
+        },
+      },
+    ]);
+
+    // 6. Category Performance
+    const categoryPerformance = await Order.aggregate([
+      { $unwind: "$items" },
+      {
+        $lookup: {
+          from: "items",
+          localField: "items.item",
+          foreignField: "_id",
+          as: "itemDetails",
+        },
+      },
+      { $unwind: "$itemDetails" },
+      {
+        $group: {
+          _id: "$itemDetails.category",
+          totalOrdered: { $sum: "$items.quantity" },
+          totalRevenue: {
+            $sum: { $multiply: ["$items.price", "$items.quantity"] },
+          },
+          uniqueItems: { $addToSet: "$items.item" },
+        },
+      },
+      {
+        $project: {
+          category: "$_id",
+          totalOrdered: 1,
+          totalRevenue: 1,
+          uniqueItemsCount: { $size: "$uniqueItems" },
+        },
+      },
+      { $sort: { totalRevenue: -1 } },
+    ]);
+
+    // 7. Daily Performance (for the selected month)
+    const dailyPerformance = await Order.aggregate([
+      {
+        $group: {
+          _id: { $dayOfMonth: "$createdAt" },
+          orders: { $sum: 1 },
+          revenue: { $sum: "$totalAmount" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        bestItems,
+        bestReviews,
+        cancelledOrders,
+        dislikedItems,
+        monthlyStats: monthlyStats[0] || {
+          totalOrders: 0,
+          totalRevenue: 0,
+          avgOrderValue: 0,
+          completedOrders: 0,
+          cancelledOrders: 0,
+          pendingOrders: 0,
+        },
+        categoryPerformance,
+        dailyPerformance,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching restaurant analytics:", error);
+    res.status(500).json({
+      success: false,
+      error: { message: "Internal Server error" },
+    });
+  }
+};
+
 module.exports = {
   registerResturant,
   loginResturant,
@@ -255,4 +502,5 @@ module.exports = {
   getAllResturants,
   upadateResturantData,
   updateResturantStatus,
+  getResturantAnalytics,
 };

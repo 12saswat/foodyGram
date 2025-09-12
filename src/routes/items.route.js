@@ -16,11 +16,11 @@ router.get("/", checkAuth, getAllItems);
 router.get("/item/:id", checkAuth, getItemById);
 router.post(
   "/create",
-  upload.fields([
-    { name: "videoUrl", checkAuth, maxCount: 1 },
-    { name: "imageUrl", checkAuth, maxCount: 1 },
-  ]),
   checkAuth,
+  upload.fields([
+    { name: "videoUrl", maxCount: 1 },
+    { name: "imageUrl", maxCount: 1 },
+  ]),
   checkRole(["restaurant"]),
   create
 );

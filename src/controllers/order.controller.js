@@ -6,44 +6,64 @@ const Resturant = require("../models/resturant.model");
 
 const placeOrder = async (req, res) => {
   try {
-    const { restaurantId, items, address, paymentStatus } = req.body;
+    const { items, address, paymentStatus } = req.body;
     const userId = req.user._id;
 
-    if (!restaurantId || !items || items.length === 0 || !address) {
+    if (!items || items.length === 0 || !address) {
       return res.status(400).json({
         success: false,
-        message: "Restaurant, items, and address are required",
+        message: "Items and address are required",
       });
     }
 
     // Fetch item details from DB
     let totalAmount = 0;
     const orderItems = [];
+    const restaurantIds = new Set(); // Use Set to avoid duplicates
 
     for (const i of items) {
       const dbItem = await Items.findById(i.item);
+
       if (!dbItem) {
         return res.status(404).json({
           success: false,
-          message: `Item not found: ${i.item.name}`,
+          message: `Item not found: ${i.item}`,
         });
       }
 
-      const quantity = i.quantity || 1; // default 1
+      const quantity = i.quantity || 1;
       const price = dbItem.price;
 
       totalAmount += price * quantity;
+
+      // Add restaurant ID to set
+      restaurantIds.add(dbItem.resturantId.toString());
 
       orderItems.push({
         item: dbItem._id,
         quantity,
         price,
+        restaurant: dbItem.resturantId, // Store restaurant for each item
+      });
+    }
+
+    // Convert Set to Array
+    const uniqueRestaurants = Array.from(restaurantIds);
+
+    // Verify all restaurants exist
+    const restaurants = await Resturant.find({
+      _id: { $in: uniqueRestaurants },
+    });
+    if (restaurants.length !== uniqueRestaurants.length) {
+      return res.status(404).json({
+        success: false,
+        message: "One or more restaurants not found",
       });
     }
 
     const newOrder = new Order({
       user: userId,
-      restaurant: restaurantId,
+      restaurants: uniqueRestaurants, // Array of all restaurants
       items: orderItems,
       totalAmount,
       address,
@@ -52,10 +72,23 @@ const placeOrder = async (req, res) => {
 
     await newOrder.save();
 
+    // Update user's orders
+    await User.findByIdAndUpdate(userId, {
+      $push: { orders: newOrder._id },
+    });
+
+    // Update all restaurants' orders
+    await Resturant.updateMany(
+      { _id: { $in: uniqueRestaurants } },
+      { $push: { orders: newOrder._id } }
+    );
+
     return res.status(201).json({
       success: true,
       message: "Order placed successfully",
       orderId: newOrder._id,
+      restaurants: uniqueRestaurants,
+      restaurantCount: uniqueRestaurants.length,
     });
   } catch (err) {
     console.error(err);
@@ -70,11 +103,13 @@ const getOrders = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    // Populate order's restaurant and each item's restaurant
-    const orders = await Order.find({ user: userId }).populate({
-      path: "items.item",
-      populate: { path: "resturantId", select: "name address phone avatar" },
-    });
+    // Populate restaurants array and each item's details
+    const orders = await Order.find({ user: userId })
+      .populate("restaurant", "name address phone avatar")
+      .populate({
+        path: "items.item",
+        populate: { path: "resturantId", select: "name address phone avatar" },
+      });
 
     const formattedOrders = orders.map((order) => {
       const totalAmount = order.items.reduce(
