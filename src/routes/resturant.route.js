@@ -8,6 +8,7 @@ const {
   upadateResturantData,
   getResturantById,
   getResturantAnalytics,
+  getOrders,
 } = require("../controllers/resturant.controller");
 const checkAuth = require("../middleswares/auth.middleware");
 const checkRole = require("../middleswares/checkRole.middleware");
@@ -25,13 +26,17 @@ router.put(
   checkRole(["restaurant"]),
   upadateResturantData
 );
+
+router.get("/analytics", checkAuth, getResturantAnalytics);
+
 router.patch(
   "/status",
   checkAuth,
   checkRole(["restaurant"]),
   updateResturantStatus
 );
-router.get("/analytics", checkAuth, getResturantAnalytics);
+router.get("/orders", checkAuth, checkRole(["restaurant"]), getOrders);
+
 router.get("/:id", checkAuth, getResturantById);
 
 module.exports = router;

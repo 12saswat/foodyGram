@@ -13,6 +13,7 @@ const {
   updateCartQuantity,
   orderSavedItem,
   userDashboard,
+  getOrderStatus,
 } = require("../controllers/user.controller");
 const checkAuth = require("../middleswares/auth.middleware");
 const checkRole = require("../middleswares/checkRole.middleware");
@@ -45,6 +46,12 @@ router.post(
   checkRole(["customer"]),
   checkAuth,
   updateCartQuantity
+);
+router.get(
+  "/orderStatus/:id",
+  checkAuth,
+  checkRole(["customer"]),
+  getOrderStatus
 );
 router.post(
   "/checkout/saved/:id",

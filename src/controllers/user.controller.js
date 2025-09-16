@@ -601,6 +601,28 @@ const userDashboard = async (req, res) => {
   }
 };
 
+const getOrderStatus = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const orderId = req.params.id;
+    const order = await Order.findOne({ _id: orderId, user: userId });
+    if (!order) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found" });
+    }
+    return res.status(200).json({
+      success: true,
+      orderStatus: order.status,
+    });
+  } catch (err) {
+    console.error(err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -615,4 +637,5 @@ module.exports = {
   checkoutCart,
   orderSavedItem,
   userDashboard,
+  getOrderStatus,
 };

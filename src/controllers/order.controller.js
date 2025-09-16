@@ -9,6 +9,12 @@ const placeOrder = async (req, res) => {
     const { items, address, paymentStatus } = req.body;
     const userId = req.user._id;
 
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid user id" });
+    }
+
     if (!items || items.length === 0 || !address) {
       return res.status(400).json({
         success: false,
@@ -19,7 +25,7 @@ const placeOrder = async (req, res) => {
     // Fetch item details from DB
     let totalAmount = 0;
     const orderItems = [];
-    const restaurantIds = new Set(); // Use Set to avoid duplicates
+    const restaurantIds = new Set();
 
     for (const i of items) {
       const dbItem = await Items.findById(i.item);
@@ -36,34 +42,21 @@ const placeOrder = async (req, res) => {
 
       totalAmount += price * quantity;
 
-      // Add restaurant ID to set
+      // Extract restaurant ID from item's resturantId field
       restaurantIds.add(dbItem.resturantId.toString());
 
       orderItems.push({
         item: dbItem._id,
         quantity,
         price,
-        restaurant: dbItem.resturantId, // Store restaurant for each item
       });
     }
 
-    // Convert Set to Array
     const uniqueRestaurants = Array.from(restaurantIds);
-
-    // Verify all restaurants exist
-    const restaurants = await Resturant.find({
-      _id: { $in: uniqueRestaurants },
-    });
-    if (restaurants.length !== uniqueRestaurants.length) {
-      return res.status(404).json({
-        success: false,
-        message: "One or more restaurants not found",
-      });
-    }
-
+    console.log(uniqueRestaurants);
     const newOrder = new Order({
       user: userId,
-      restaurants: uniqueRestaurants, // Array of all restaurants
+      restaurant: uniqueRestaurants,
       items: orderItems,
       totalAmount,
       address,
@@ -77,7 +70,7 @@ const placeOrder = async (req, res) => {
       $push: { orders: newOrder._id },
     });
 
-    // Update all restaurants' orders
+    // Update restaurants' orders
     await Resturant.updateMany(
       { _id: { $in: uniqueRestaurants } },
       { $push: { orders: newOrder._id } }
@@ -87,8 +80,6 @@ const placeOrder = async (req, res) => {
       success: true,
       message: "Order placed successfully",
       orderId: newOrder._id,
-      restaurants: uniqueRestaurants,
-      restaurantCount: uniqueRestaurants.length,
     });
   } catch (err) {
     console.error(err);
@@ -108,7 +99,10 @@ const getOrders = async (req, res) => {
       .populate("restaurant", "name address phone avatar")
       .populate({
         path: "items.item",
-        populate: { path: "resturantId", select: "name address phone avatar" },
+        populate: {
+          path: "resturantId",
+          select: "name address phone avatar",
+        },
       });
 
     const formattedOrders = orders.map((order) => {
@@ -124,7 +118,8 @@ const getOrders = async (req, res) => {
           ...i.item._doc,
           quantity: i.quantity,
           price: i.price,
-          resturant: i.item.resturantId
+          // Add restaurant info from the populated resturantId
+          restaurant: i.item.resturantId
             ? {
                 name: i.item.resturantId.name,
                 address: i.item.resturantId.address,
@@ -249,10 +244,45 @@ const removeOrderItem = async (req, res) => {
   }
 };
 
+const updateStatus = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const { status } = req.body;
+
+    if (!orderId || !status) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Order ID and status are required" });
+    }
+
+    const order = await Order.findByIdAndUpdate(
+      orderId,
+      { status },
+      { new: true }
+    );
+    if (!order) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Order status updated successfully",
+    });
+  } catch (err) {
+    console.error(err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   placeOrder,
   getOrders,
   deleteOrder,
   removeOrderItem,
   viewAOrders,
+  updateStatus,
 };

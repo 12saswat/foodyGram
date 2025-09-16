@@ -447,8 +447,6 @@ const getResturantAnalytics = async (req, res) => {
       { $sort: { _id: 1 } },
     ]);
 
-    console.log("id", await Review.findOne({ restaurantId }));
-
     res.status(200).json({
       success: true,
       data: {
@@ -477,6 +475,72 @@ const getResturantAnalytics = async (req, res) => {
   }
 };
 
+const getOrders = async (req, res) => {
+  try {
+    const resturantId = req.user._id;
+
+    if (!resturantId) {
+      return res.status(400).json({
+        success: false,
+        error: { message: "Restaurant not found" },
+      });
+    }
+
+    const restaurant = await Resturant.findById(resturantId);
+
+    if (!restaurant || !restaurant.orders || restaurant.orders.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: { message: "No orders found for this restaurant" },
+      });
+    }
+
+    const orders = await Order.find({
+      _id: { $in: restaurant.orders },
+    })
+      .populate("user", "name email phone")
+      .populate("items.item", "name price category imageUrl ")
+      .select("-restaurant")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: orders.length,
+      data: orders,
+    });
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    res.status(500).json({
+      success: false,
+      error: { message: "Internal Server Error" },
+    });
+  }
+};
+
+// const getOrders = async (req, res) => {
+//   try {
+//     const resturantId = req.user._id;
+
+//     const orders = await Resturant.findById(resturantId)
+//       .populate({
+//         path: "orders",
+//         populate: [
+//           { path: "user", select: "name email phone" },
+//           { path: "items.item", select: "name price category imageUrl" },
+//         ],
+//       })
+//       .select("orders");
+
+//     console.log(orders);
+//   } catch (error) {
+//     console.error("Error fetching orders:", error);
+//     res.status(500).json({
+//       success: false,
+//       error: { message: "Internal Server Error" },
+//     });
+//   }
+// };
+
 module.exports = {
   registerResturant,
   loginResturant,
@@ -486,4 +550,5 @@ module.exports = {
   upadateResturantData,
   updateResturantStatus,
   getResturantAnalytics,
+  getOrders,
 };
