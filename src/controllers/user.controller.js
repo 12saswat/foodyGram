@@ -4,6 +4,8 @@ const mongoose = require("mongoose");
 const Item = require("../models/items.model");
 const Resturant = require("../models/resturant.model");
 const Order = require("../models/order.model");
+const sendEmail = require("../utils/mailer");
+const generateOtp = require("../utils/generateOtp");
 
 const registerUser = async (req, res) => {
   try {
@@ -86,6 +88,52 @@ const loginUser = async (req, res) => {
         token: token,
         response: {
           message: "User logged in successfully!",
+        },
+      });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      success: false,
+      error: {
+        message: "Internal Server error",
+      },
+    });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { password } = req.body;
+    if (!password) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Password is required" });
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+    user.password = password;
+    await user.save();
+
+    const token = user.generateAccessToken();
+
+    return res
+      .status(200)
+      .cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV !== "production", // true in prod
+        sameSite: process.env.NODE_ENV === "production" ? "lax" : "none",
+        maxAge: 24 * 60 * 60 * 1000,
+      })
+      .json({
+        success: true,
+        token: token,
+        response: {
+          message: "Password reset successfully!",
         },
       });
   } catch (err) {
@@ -623,6 +671,123 @@ const getOrderStatus = async (req, res) => {
   }
 };
 
+const sendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // generate 6 digit otp
+    const otp = generateOtp();
+    const expiry = Date.now() + 10 * 60 * 1000;
+
+    user.otp = otp;
+    // set expiry time to 10 minutes from now
+    user.otpExpiry = expiry;
+    await user.save();
+
+    // Create a link for password reset
+    // Ensure CLIENT_URL is defined in your environment variables
+    const linkUrl = `${process.env.CLIENT_URL}/worker/auth/reset-password/${user._id}`;
+
+    // Email content
+    // Use a template literal to create the HTML content
+    // HTML email content
+    const html = `
+      <p>Your OTP is <strong>${otp}</strong>. It is valid for 10 minutes.</p>
+      <p>You can also reset your password directly using the link below:</p>
+      <a href="${linkUrl}" style="display:inline-block;padding:10px 20px;background-color:#007BFF;color:#fff;text-decoration:none;border-radius:5px;">Reset Password</a>
+    `;
+
+    // Send the email using the sendEmail utility
+    await sendEmail({ to: email, subject: "Password Reset OTP", html });
+    res.status(200).json({
+      success: true,
+      response: {
+        message: "OTP sent successfully",
+      },
+      data: {
+        workerId: user._id,
+        RedirectUrl: linkUrl,
+      },
+    });
+  } catch (err) {
+    console.error("Error sending OTP:", err);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: "Internal Server Error",
+      },
+    });
+  }
+};
+
+const verifyOtp = async (req, res) => {
+  try {
+    const { otp } = req.body;
+    if (!otp) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: "OTP is required",
+        },
+      });
+    }
+
+    const userId = req.params.id;
+    const user = await User.findById(userId);
+
+    if (!user || !user.otp || !user.otpExpiry) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: "OTP not found or expired",
+        },
+      });
+    }
+
+    if (user.otp !== otp || user.otpExpiry < Date.now()) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: "Invalid or expired OTP",
+        },
+      });
+    }
+    // Clear OTP fields after successful verification
+    user.otp = null;
+    user.otpExpiry = null;
+
+    res.status(200).json({
+      success: true,
+      response: {
+        message: "OTP verified successfully",
+      },
+      data: null,
+    });
+  } catch (err) {
+    console.error("Error verifying OTP:", err);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: "Internal Server Error",
+      },
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -638,4 +803,7 @@ module.exports = {
   orderSavedItem,
   userDashboard,
   getOrderStatus,
+  resetPassword,
+  sendOtp,
+  verifyOtp,
 };

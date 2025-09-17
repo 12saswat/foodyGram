@@ -9,6 +9,9 @@ const {
   getResturantById,
   getResturantAnalytics,
   getOrders,
+  resetPassword,
+  sendOtp,
+  verifyOtp,
 } = require("../controllers/resturant.controller");
 const checkAuth = require("../middleswares/auth.middleware");
 const checkRole = require("../middleswares/checkRole.middleware");
@@ -17,6 +20,9 @@ const router = express.Router();
 
 router.post("/register", registerResturant);
 router.post("/login", loginResturant);
+router.post("/resetPassword/:id", resetPassword);
+router.post("/sendOtp", sendOtp);
+router.post("/verifyOtp/:id", verifyOtp);
 router.get("/profile", checkAuth, getResturantProfile);
 
 router.get("/", checkAuth, checkRole(["restaurant"]), getAllResturants);

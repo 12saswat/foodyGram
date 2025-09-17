@@ -3,6 +3,8 @@ const Item = require("../models/items.model");
 const Order = require("../models/order.model");
 const Review = require("../models/review.Model");
 const mongoose = require("mongoose");
+const generateOtp = require("../utils/generateOtp");
+const sendEmail = require("../utils/mailer");
 
 const registerResturant = async (req, res) => {
   const { name, address, phone, email, type, password, rating } = req.body;
@@ -96,6 +98,50 @@ const loginResturant = async (req, res) => {
   } catch (error) {
     console.error("Error logging in restaurant:", error);
     res.status(500).json({
+      success: false,
+      error: {
+        message: "Internal Server error",
+      },
+    });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { password } = req.body;
+    if (!password) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Password is required" });
+    }
+    const resturant = await Resturant.findById(userId);
+    if (!resturant) {
+      return res.status(404).json({ success: false, message: " not found" });
+    }
+    resturant.password = password;
+    await resturant.save();
+
+    const token = resturant.generateAccessToken();
+
+    return res
+      .status(200)
+      .cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV !== "production", // true in prod
+        sameSite: process.env.NODE_ENV === "production" ? "lax" : "none",
+        maxAge: 24 * 60 * 60 * 1000,
+      })
+      .json({
+        success: true,
+        token: token,
+        response: {
+          message: "Password reset successfully!",
+        },
+      });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
       success: false,
       error: {
         message: "Internal Server error",
@@ -517,29 +563,122 @@ const getOrders = async (req, res) => {
   }
 };
 
-// const getOrders = async (req, res) => {
-//   try {
-//     const resturantId = req.user._id;
+const sendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
 
-//     const orders = await Resturant.findById(resturantId)
-//       .populate({
-//         path: "orders",
-//         populate: [
-//           { path: "user", select: "name email phone" },
-//           { path: "items.item", select: "name price category imageUrl" },
-//         ],
-//       })
-//       .select("orders");
+    const resturant = await Resturant.findOne({ email });
+    if (!resturant) {
+      return res.status(404).json({
+        success: false,
+        message: " not found",
+      });
+    }
 
-//     console.log(orders);
-//   } catch (error) {
-//     console.error("Error fetching orders:", error);
-//     res.status(500).json({
-//       success: false,
-//       error: { message: "Internal Server Error" },
-//     });
-//   }
-// };
+    // generate 6 digit otp
+    const otp = generateOtp();
+    const expiry = Date.now() + 10 * 60 * 1000;
+
+    resturant.otp = otp;
+    // set expiry time to 10 minutes from now
+    resturant.otpExpiry = expiry;
+    await resturant.save();
+
+    // Create a link for password reset
+    // Ensure CLIENT_URL is defined in your environment variables
+    const linkUrl = `${process.env.CLIENT_URL}/worker/auth/reset-password/${resturant._id}`;
+
+    // Email content
+    // Use a template literal to create the HTML content
+    // HTML email content
+    const html = `
+      <p>Your OTP is <strong>${otp}</strong>. It is valid for 10 minutes.</p>
+      <p>You can also reset your password directly using the link below:</p>
+      <a href="${linkUrl}" style="display:inline-block;padding:10px 20px;background-color:#007BFF;color:#fff;text-decoration:none;border-radius:5px;">Reset Password</a>
+    `;
+
+    // Send the email using the sendEmail utility
+    await sendEmail({ to: email, subject: "Password Reset OTP", html });
+    res.status(200).json({
+      success: true,
+      response: {
+        message: "OTP sent successfully",
+      },
+      data: {
+        workerId: resturant._id,
+        RedirectUrl: linkUrl,
+      },
+    });
+  } catch (err) {
+    console.error("Error sending OTP:", err);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: "Internal Server Error",
+      },
+    });
+  }
+};
+
+const verifyOtp = async (req, res) => {
+  try {
+    const { otp } = req.body;
+    if (!otp) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: "OTP is required",
+        },
+      });
+    }
+
+    const userId = req.params.id;
+    const resturant = await Resturant.findById(userId);
+
+    if (!resturant || !resturant.otp || !resturant.otpExpiry) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: "OTP not found or expired",
+        },
+      });
+    }
+
+    if (resturant.otp !== otp || resturant.otpExpiry < Date.now()) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: "Invalid or expired OTP",
+        },
+      });
+    }
+    // Clear OTP fields after successful verification
+    resturant.otp = null;
+    resturant.otpExpiry = null;
+
+    res.status(200).json({
+      success: true,
+      response: {
+        message: "OTP verified successfully",
+      },
+      data: null,
+    });
+  } catch (err) {
+    console.error("Error verifying OTP:", err);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: "Internal Server Error",
+      },
+    });
+  }
+};
 
 module.exports = {
   registerResturant,
@@ -551,4 +690,7 @@ module.exports = {
   updateResturantStatus,
   getResturantAnalytics,
   getOrders,
+  resetPassword,
+  verifyOtp,
+  sendOtp,
 };

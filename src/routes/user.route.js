@@ -14,6 +14,9 @@ const {
   orderSavedItem,
   userDashboard,
   getOrderStatus,
+  resetPassword,
+  sendOtp,
+  verifyOtp,
 } = require("../controllers/user.controller");
 const checkAuth = require("../middleswares/auth.middleware");
 const checkRole = require("../middleswares/checkRole.middleware");
@@ -22,6 +25,9 @@ const router = express.Router();
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);
+router.post("/resetPassword/:id", resetPassword);
+router.post("/sendOtp", sendOtp);
+router.post("/verifyOtp/:id", verifyOtp);
 router.get("/profile", checkAuth, checkRole(["customer"]), getUser);
 router.get("/dashboard", checkAuth, checkRole(["customer"]), userDashboard);
 router.get("/savedItems", checkAuth, checkRole(["customer"]), getSavedItems);
@@ -53,6 +59,7 @@ router.get(
   checkRole(["customer"]),
   getOrderStatus
 );
+
 router.post(
   "/checkout/saved/:id",
   checkAuth,

@@ -12,7 +12,7 @@ const checkRole = require("../middleswares/checkRole.middleware");
 
 const router = express.Router();
 
-router.get("/", checkAuth, getAllItems);
+router.get("/", getAllItems);
 router.get("/item/:id", checkAuth, getItemById);
 router.post(
   "/create",

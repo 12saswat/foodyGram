@@ -13,7 +13,9 @@ const resturantSchema = new mongoose.Schema(
     type: { type: String, enum: ["veg", "non-veg", "both"], default: "both" },
     status: { type: String, enum: ["open", "close"], default: "open" },
     avatar: { type: String },
-    rating: { type: Number, default: 0, min: 0, max: 5 }, //
+    rating: { type: Number, default: 0, min: 0, max: 5 },
+    otp: { type: String, select: false, default: null },
+    otpExpiry: { type: Date, select: false, default: null },
     items: [
       {
         type: mongoose.Schema.Types.ObjectId,
