@@ -16,9 +16,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(
   cors({
-    // origin: "https://foody-gram-f.vercel.app",
+    origin: "https://foody-gram-f.vercel.app",
     // origin: "https://localhost:5173",
-    origin: true,
+    // origin: true,
     credentials: true,
   })
 );
